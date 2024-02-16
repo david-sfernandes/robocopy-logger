@@ -1,12 +1,20 @@
 # Script developed by David Fernandes | Terabyte in 2024
+
+# Mount disk
+$diskId = '{00000000-0000-0000-0000-602200000000}50004C4F01557FDA'
+Get-Partition -UniqueId $diskId | Set-Partition -NewDriveLetter F
+
+# await for the disk to be mounted
+Start-Sleep -Seconds 5
+
 $hostname = hostname
 $mac = Get-WmiObject win32_networkadapterconfiguration | Where-Object { $_.IPEnabled -eq "TRUE" } | Select-Object macaddress
 $mac = $mac.macaddress -replace ":", ""
-$timestampStart = Get-Date -Format "dd-MM-yyyy_HH:mm"
-$url = "http://localhost:8080/api/log"
-$bckpOrigin = "C:\Users\david\Documents\backup\origin"
-$bckpDest = "C:\Users\david\Documents\backup\destiny"
-$logFile = "C:\Users\david\Documents\backup\log\backup_$timestampStart.txt"
+$timestampStart = Get-Date -Format "dd-MM-yyyy_HH-mm"
+$url = "http://localhost:8080/api/logs"
+$bckpOrigin = "C:\Users\Administrador\Documents"
+$bckpDest = "F:\dest"
+$logFile = "C:\Users\Administrador\Documents\robocopy-logger\log\backup_$timestampStart.txt"
 
 $dataObject = New-Object PSObject
 Add-Member -inputObject $dataObject -memberType NoteProperty -name "hostname" -value $hostname
@@ -23,8 +31,8 @@ Add-Member -inputObject $dataObject -memberType NoteProperty -name "failedDirs" 
 Add-Member -inputObject $dataObject -memberType NoteProperty -name "failedFiles" -value $null
 Add-Member -inputObject $dataObject -memberType NoteProperty -name "failedMBytes" -value $null
 
-robocopy $bckpOrigin $bckpDest /mir /e /log:$logFile
-$timestampEnd = Get-Date -Format "dd-MM-yyyy_HH:mm"
+robocopy $bckpOrigin $bckpDest /mir /v /r:0 /w:0 /NFL /NDL /log:$logFile
+$timestampEnd = Get-Date -Format "dd-MM-yyyy_HH-mm"
 $dataObject.timestampEnd = $timestampEnd
 
 $logReport = Get-Content $logFile
@@ -33,7 +41,6 @@ foreach ($line in $logReport) {
   $line = $line -replace ('[^a-zA-Z\d\s:]', '')
   switch -Regex ($line) {
     'Diretrios' {
-      Write-Output  "òóôÒÓÔ: $line"
       $dirs = $_.Replace('Diretrios:', '').Trim()
       $dirs = $dirs -split '\s+'
 
@@ -89,3 +96,6 @@ Write-Output $dataObject
 $jsonBody = $dataObject | ConvertTo-Json
 $resp = Invoke-RestMethod -Uri $url -Method Post -Body $jsonBody -ContentType "application/json; charset=utf-16"
 Add-Content $logFile "`n$resp"
+
+# Unmount disk
+Get-Volume -Drive 'F' | Get-Partition | Remove-PartitionAccessPath -accesspath 'F:'
