@@ -1,20 +1,21 @@
 # Script developed by David Fernandes | Terabyte in 2024
 
 # Mount disk
-$diskId = '{00000000-0000-0000-0000-602200000000}50004C4F01557FDA'
+# To find diskId run: Get-Partition | Select PartitionNumber,DriveLetter,Offset,UniqueId
+$diskId = '{00000000-0000-0000-0000-50760d000000}600224802A92144BDDECCACEB99B85CD'
 Get-Partition -UniqueId $diskId | Set-Partition -NewDriveLetter F
 
-# await for the disk to be mounted
+# Await for the disk to be mounted
 Start-Sleep -Seconds 5
 
 $hostname = hostname
 $mac = Get-WmiObject win32_networkadapterconfiguration | Where-Object { $_.IPEnabled -eq "TRUE" } | Select-Object macaddress
 $mac = $mac.macaddress -replace ":", ""
 $timestampStart = Get-Date -Format "dd-MM-yyyy_HH-mm"
-$url = "http://localhost:8080/api/logs"
-$bckpOrigin = "C:\Users\Administrador\Documents"
-$bckpDest = "F:\dest"
-$logFile = "C:\Users\Administrador\Documents\robocopy-logger\log\backup_$timestampStart.txt"
+$url = "http://192.168.20.134:8080/api/logs"
+$bckpOrigin = "C:\origem"
+$bckpDest = "F:\backup"
+$logFile = "C:\robocopy-logger\backup_$timestampStart.txt"
 
 $dataObject = New-Object PSObject
 Add-Member -inputObject $dataObject -memberType NoteProperty -name "hostname" -value $hostname
@@ -61,8 +62,6 @@ foreach ($line in $logReport) {
     '^\s+Bytes:\s*' {
       $bytes = $_.Replace('Bytes:', '').Trim()
       $bytes = $bytes -split '\s+'
-      #The raw text from the log file contains a k,m,or g after the non zero numers.
-      #This will be used as a multiplier to determin the size in MB.
       $counter = 0
       $tempByteArray = 0, 0, 0, 0, 0, 0
       $tempByteArrayCounter = 0
@@ -92,7 +91,6 @@ foreach ($line in $logReport) {
   }
 }
 
-Write-Output $dataObject
 $jsonBody = $dataObject | ConvertTo-Json
 $resp = Invoke-RestMethod -Uri $url -Method Post -Body $jsonBody -ContentType "application/json; charset=utf-16"
 Add-Content $logFile "`n$resp"
