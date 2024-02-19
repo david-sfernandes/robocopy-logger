@@ -2,6 +2,7 @@
 
 # Mount disk
 # To find diskId run: Get-Partition | Select PartitionNumber,DriveLetter,Offset,UniqueId
+# TODO: Check if the disk is already mounted
 $diskId = '{00000000-0000-0000-0000-50760d000000}600224802A92144BDDECCACEB99B85CD'
 Get-Partition -UniqueId $diskId | Set-Partition -NewDriveLetter F
 
@@ -36,7 +37,7 @@ robocopy $bckpOrigin $bckpDest /mir /v /r:0 /w:0 /NFL /NDL /log:$logFile
 $timestampEnd = Get-Date -Format "dd-MM-yyyy_HH-mm"
 $dataObject.timestampEnd = $timestampEnd
 
-$logReport = Get-Content $logFile
+$logReport = Get-Content $logFile -Tail 15
 
 foreach ($line in $logReport) {
   $line = $line -replace ('[^a-zA-Z\d\s:]', '')
@@ -92,7 +93,7 @@ foreach ($line in $logReport) {
 }
 
 $jsonBody = $dataObject | ConvertTo-Json
-$resp = Invoke-RestMethod -Uri $url -Method Post -Body $jsonBody -ContentType "application/json; charset=utf-16"
+$resp = Invoke-RestMethod -Uri $url -Method Post -Body $jsonBody -ContentType "application/json; charset=utf-16" -TimeoutSec 120
 Add-Content $logFile "`n$resp"
 
 # Unmount disk
